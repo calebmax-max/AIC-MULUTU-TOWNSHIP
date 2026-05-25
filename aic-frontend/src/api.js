@@ -1,5 +1,2 @@
-const API_BASE = process.env.NODE_ENV === "production"
-  ? "https://caocake.alwaysdata.net"
-  : "";          // empty = same origin, proxy handles it
-
+const API_BASE = "https://aic-backend.onrender.com";
 export default API_BASE;
