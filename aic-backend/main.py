@@ -17,6 +17,7 @@ from fastapi import FastAPI, HTTPException, UploadFile, File, Form, Depends, Req
 from fastapi.responses import Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.base import BaseHTTPMiddleware
 from pydantic import BaseModel
 from dotenv import load_dotenv
 
@@ -37,6 +38,15 @@ app.add_middleware(
     allow_credentials=False,
     max_age=600,
 )
+
+class StaticCORSMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request, call_next):
+        response = await call_next(request)
+        response.headers["Access-Control-Allow-Origin"] = "*"
+        response.headers["Cross-Origin-Resource-Policy"] = "cross-origin"
+        return response
+
+app.add_middleware(StaticCORSMiddleware)
 
 # Explicit OPTIONS handler — some hosts (alwaysdata, nginx proxies) strip
 # CORS headers from preflight responses before FastAPI can add them.
