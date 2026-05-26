@@ -81,8 +81,29 @@ function getViewerSrc(fileUrl) {
   return `https://docs.google.com/viewer?url=${encodeURIComponent(absolute)}&embedded=true`;
 }
 
+// ── Preload file into browser cache on hover ──────────────────────────────
+function preloadFile(fileUrl) {
+  const ext = fileUrl.split(".").pop().toLowerCase();
+  if (ext === "pdf") {
+    // Fetch PDF into cache so iframe loads instantly
+    fetch(fileUrl, { mode: "no-cors" }).catch(() => {});
+  } else {
+    // Prefetch the Google Docs Viewer URL
+    const src = getViewerSrc(fileUrl);
+    if (!document.querySelector(`link[data-gv-prefetch="${btoa(src).slice(0,20)}"]`)) {
+      const link = document.createElement("link");
+      link.rel = "prefetch";
+      link.href = src;
+      link.dataset.gvPrefetch = btoa(src).slice(0, 20);
+      document.head.appendChild(link);
+    }
+  }
+}
+
 // ── Sermon modal ──────────────────────────────────────────────────────────
 function SermonModal({ sermon, onClose }) {
+  const [iframeLoaded, setIframeLoaded] = useState(false);
+
   // Lock body scroll while modal is open
   useEffect(() => {
     document.body.style.overflow = "hidden";
@@ -181,12 +202,34 @@ function SermonModal({ sermon, onClose }) {
           </div>
         </div>
 
-        {/* ── iframe viewer ── */}
-        <iframe
-          src={src}
-          title={sermon.series}
-          style={{ flex: 1, border: "none", width: "100%", background: T.cream }}
-        />
+        {/* ── iframe viewer with loading overlay ── */}
+        <div style={{ flex: 1, position: "relative" }}>
+          {!iframeLoaded && (
+            <div style={{
+              position: "absolute", inset: 0,
+              display: "flex", flexDirection: "column",
+              alignItems: "center", justifyContent: "center",
+              background: T.cream, gap: "12px", zIndex: 1,
+            }}>
+              <div style={{
+                width: "36px", height: "36px", borderRadius: "50%",
+                border: `3px solid ${T.border}`,
+                borderTopColor: T.gold,
+                animation: "spin 0.8s linear infinite",
+              }} />
+              <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
+              <p style={{ fontFamily: font.body, fontSize: "13px", color: T.textLight, margin: 0 }}>
+                Loading document…
+              </p>
+            </div>
+          )}
+          <iframe
+            src={src}
+            title={sermon.series}
+            onLoad={() => setIframeLoaded(true)}
+            style={{ width: "100%", height: "100%", border: "none", background: T.cream }}
+          />
+        </div>
       </div>
     </div>
   );
@@ -232,6 +275,7 @@ function SermonCard({ sermon, index, featured, onRead }) {
         {/* ── Featured action buttons ── */}
         <div style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>
           <button
+            onMouseEnter={() => preloadFile(`${API_BASE}${sermon.file}`)}
             onClick={() => onRead(sermon)}
             style={styles.downloadBtnPrimary}
           >
@@ -254,7 +298,7 @@ function SermonCard({ sermon, index, featured, onRead }) {
   return (
     <div
       ref={ref}
-      onMouseEnter={() => setHovered(true)}
+      onMouseEnter={() => { setHovered(true); preloadFile(`${API_BASE}${sermon.file}`); }}
       onMouseLeave={() => setHovered(false)}
       style={{
         ...styles.sermonCard,
