@@ -71,78 +71,126 @@ function reveal(visible, extra = {}) {
   };
 }
 
-// ── Sermon data ───────────────────────────────────────────────────────────
-// Replace `file` with the actual path to your uploaded sermon file, e.g. "/sermons/walking-by-faith.pdf"
-const SERIES = [
-  {
-    id: 1,
-    series:    "Walking by Faith",
-    speaker:   "Pastor John Mutua",
-    date:      "18 May 2025",
-    scripture: "Hebrews 11:1-6",
-    tag:       "Faith",
-    featured:  true,
-    desc:      "An exploration of what it truly means to walk by faith and not by sight, drawing from the great cloud of witnesses in Hebrews 11.",
-    file:      "/sermons/walking-by-faith.pdf",
-  },
-  {
-    id: 2,
-    series:    "The Power of Prayer",
-    speaker:   "Pastor John Mutua",
-    date:      "11 May 2025",
-    scripture: "James 5:13-18",
-    tag:       "Prayer",
-    featured:  false,
-    desc:      "Unpacking the promise that the prayer of a righteous person is powerful and effective, and what that means for our daily walk.",
-    file:      "/sermons/power-of-prayer.docx",
-  },
-  {
-    id: 3,
-    series:    "Grace Sufficient",
-    speaker:   "Evangelist Mary Wambua",
-    date:      "4 May 2025",
-    scripture: "2 Corinthians 12:9",
-    tag:       "Grace",
-    featured:  false,
-    desc:      "A testimony-rich message on how God's grace is made perfect in our weakness, and why we can boast in our struggles.",
-    file:      "/sermons/grace-sufficient.pdf",
-  },
-  {
-    id: 4,
-    series:    "Rooted in the Word",
-    speaker:   "Pastor John Mutua",
-    date:      "27 Apr 2025",
-    scripture: "Psalm 1:1-3",
-    tag:       "Scripture",
-    featured:  false,
-    desc:      "What it means to meditate on God's Word day and night, and how that transforms every area of our lives.",
-    file:      "/sermons/rooted-in-the-word.pdf",
-  },
-  {
-    id: 5,
-    series:    "Love One Another",
-    speaker:   "Deacon Samuel Kilonzo",
-    date:      "20 Apr 2025",
-    scripture: "John 13:34-35",
-    tag:       "Community",
-    featured:  false,
-    desc:      "Jesus' command to love one another as He loved us — exploring what sacrificial, community-centred love looks like in practice.",
-    file:      "/sermons/love-one-another.docx",
-  },
-  {
-    id: 6,
-    series:    "The Generous Life",
-    speaker:   "Pastor John Mutua",
-    date:      "13 Apr 2025",
-    scripture: "Proverbs 11:24-25",
-    tag:       "Generosity",
-    featured:  false,
-    desc:      "Why generosity is not just a financial principle but a posture of the heart that opens us up to God's abundance.",
-    file:      "/sermons/the-generous-life.pdf",
-  },
-];
+// ── Viewer URL helper ─────────────────────────────────────────────────────
+function getViewerSrc(fileUrl) {
+  const ext = fileUrl.split(".").pop().toLowerCase();
+  if (ext === "pdf") return fileUrl;
+  const absolute = fileUrl.startsWith("http")
+    ? fileUrl
+    : `${window.location.origin}${fileUrl}`;
+  return `https://docs.google.com/viewer?url=${encodeURIComponent(absolute)}&embedded=true`;
+}
 
-// Tags and sermons are now loaded dynamically from the backend
+// ── Sermon modal ──────────────────────────────────────────────────────────
+function SermonModal({ sermon, onClose }) {
+  // Lock body scroll while modal is open
+  useEffect(() => {
+    document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = ""; };
+  }, []);
+
+  if (!sermon) return null;
+
+  const fileUrl = `${API_BASE}${sermon.file}`;
+  const src = getViewerSrc(fileUrl);
+
+  return (
+    <div
+      onClick={onClose}
+      style={{
+        position: "fixed", inset: 0, zIndex: 1000,
+        background: "rgba(10,20,45,0.78)",
+        backdropFilter: "blur(5px)",
+        display: "flex", alignItems: "center", justifyContent: "center",
+        padding: "1.25rem",
+        animation: "fadeIn 0.2s ease",
+      }}
+    >
+      <style>{`@keyframes fadeIn { from { opacity:0 } to { opacity:1 } }`}</style>
+
+      <div
+        onClick={e => e.stopPropagation()}
+        style={{
+          background: T.white, borderRadius: "10px",
+          width: "100%", maxWidth: "900px", height: "90vh",
+          display: "flex", flexDirection: "column",
+          boxShadow: "0 32px 100px rgba(10,20,45,0.45)",
+          overflow: "hidden",
+          animation: "slideUp 0.25s ease",
+        }}
+      >
+        <style>{`@keyframes slideUp { from { transform:translateY(24px); opacity:0 } to { transform:translateY(0); opacity:1 } }`}</style>
+
+        {/* ── Modal header ── */}
+        <div style={{
+          display: "flex", justifyContent: "space-between", alignItems: "center",
+          padding: "1rem 1.5rem",
+          background: `linear-gradient(135deg, ${T.navy} 0%, ${T.navyMid} 100%)`,
+          borderBottom: "1px solid rgba(200,146,42,0.2)",
+          flexShrink: 0,
+        }}>
+          <div style={{ minWidth: 0 }}>
+            <p style={{
+              margin: 0, fontFamily: font.body, fontSize: "11px",
+              color: T.goldLight, letterSpacing: "2px", textTransform: "uppercase",
+            }}>
+              {sermon.scripture} &nbsp;·&nbsp; {sermon.speaker}
+            </p>
+            <h3 style={{
+              margin: "4px 0 0", fontFamily: font.display,
+              fontSize: "clamp(16px, 2.5vw, 20px)", color: T.white,
+              whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+            }}>
+              {sermon.series}
+            </h3>
+          </div>
+
+          <div style={{ display: "flex", gap: "10px", alignItems: "center", flexShrink: 0, marginLeft: "1rem" }}>
+            {/* Download from modal */}
+            <a
+              href={fileUrl}
+              download
+              target="_blank"
+              rel="noreferrer"
+              style={{
+                fontFamily: font.body, fontSize: "12px", fontWeight: "700",
+                color: T.gold, background: "rgba(200,146,42,0.12)",
+                padding: "6px 14px", borderRadius: "20px",
+                border: "1px solid rgba(200,146,42,0.3)",
+                textDecoration: "none", letterSpacing: "0.5px",
+                whiteSpace: "nowrap",
+              }}
+            >
+              ⬇ Download
+            </a>
+
+            {/* Close button */}
+            <button
+              onClick={onClose}
+              style={{
+                background: "rgba(255,255,255,0.1)", border: "none",
+                color: T.white, width: "34px", height: "34px",
+                borderRadius: "50%", fontSize: "16px", cursor: "pointer",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                flexShrink: 0,
+              }}
+              aria-label="Close"
+            >
+              ✕
+            </button>
+          </div>
+        </div>
+
+        {/* ── iframe viewer ── */}
+        <iframe
+          src={src}
+          title={sermon.series}
+          style={{ flex: 1, border: "none", width: "100%", background: T.cream }}
+        />
+      </div>
+    </div>
+  );
+}
 
 // ── File type badge ───────────────────────────────────────────────────────
 function FileBadge({ filename }) {
@@ -161,7 +209,7 @@ function FileBadge({ filename }) {
 }
 
 // ── Sermon card ───────────────────────────────────────────────────────────
-function SermonCard({ sermon, index, featured }) {
+function SermonCard({ sermon, index, featured, onRead }) {
   const [ref, visible] = useReveal(index * 70);
   const [hovered, setHovered] = useState(false);
 
@@ -180,15 +228,25 @@ function SermonCard({ sermon, index, featured }) {
           <span>🎙 {sermon.speaker}</span>
           <span>📅 {sermon.date}</span>
         </div>
-        <a
-          href={`${API_BASE}${sermon.file}`}
-          download
-          target="_blank"
-          rel="noreferrer"
-          style={styles.downloadBtnPrimary}
-        >
-          ⬇ &nbsp;Download Sermon
-        </a>
+
+        {/* ── Featured action buttons ── */}
+        <div style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>
+          <button
+            onClick={() => onRead(sermon)}
+            style={styles.downloadBtnPrimary}
+          >
+            👁 &nbsp;Read Online
+          </button>
+          <a
+            href={`${API_BASE}${sermon.file}`}
+            download
+            target="_blank"
+            rel="noreferrer"
+            style={{ ...styles.downloadBtnPrimary, background: T.navyMid }}
+          >
+            ⬇ &nbsp;Download
+          </a>
+        </div>
       </div>
     );
   }
@@ -215,11 +273,27 @@ function SermonCard({ sermon, index, featured }) {
         <span>📖 {sermon.scripture}</span>
         <span>🎙 {sermon.speaker}</span>
       </div>
+
+      {/* ── Small card action buttons ── */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "1.25rem" }}>
         <span style={styles.sermonDate}>📅 {sermon.date}</span>
-        <a href={`${API_BASE}${sermon.file}`} download target="_blank" rel="noreferrer" style={styles.downloadBtnSmall}>
-          ⬇ Download
-        </a>
+        <div style={{ display: "flex", gap: "8px" }}>
+          <button
+            onClick={() => onRead(sermon)}
+            style={styles.downloadBtnSmall}
+          >
+            👁 Read
+          </button>
+          <a
+            href={`${API_BASE}${sermon.file}`}
+            download
+            target="_blank"
+            rel="noreferrer"
+            style={{ ...styles.downloadBtnSmall, background: T.navyMid }}
+          >
+            ⬇ Download
+          </a>
+        </div>
       </div>
     </div>
   );
@@ -238,6 +312,9 @@ export default function SermonsPage() {
   const [tags, setTags]             = useState(["All"]);
   const [loading, setLoading]       = useState(true);
   const [error, setError]           = useState(null);
+
+  // ── Modal state ──
+  const [activeSermon, setActiveSermon] = useState(null);
 
   // Fetch sermons and tags from backend
   useEffect(() => {
@@ -274,7 +351,7 @@ export default function SermonsPage() {
             <div style={styles.heroDivider} />
             <p style={styles.heroSub}>
               Biblical teaching to equip, encourage, and grow your faith.<br />
-              Download messages from our Sunday services and midweek fellowship.
+              Read or download messages from our Sunday services and midweek fellowship.
             </p>
           </div>
         </div>
@@ -298,7 +375,7 @@ export default function SermonsPage() {
           <div style={styles.sectionLabel}>Most Recent</div>
           <h2 style={styles.sectionTitle}>Featured Message</h2>
           <div style={styles.divider} />
-          {featured && <SermonCard sermon={featured} index={0} featured />}
+          {featured && <SermonCard sermon={featured} index={0} featured onRead={setActiveSermon} />}
         </div>
       </section>}
 
@@ -330,7 +407,7 @@ export default function SermonsPage() {
           {/* Grid */}
           <div style={styles.grid}>
             {filtered.map((sermon, i) => (
-              <SermonCard key={sermon.id} sermon={sermon} index={i} featured={false} />
+              <SermonCard key={sermon.id} sermon={sermon} index={i} featured={false} onRead={setActiveSermon} />
             ))}
           </div>
 
@@ -360,6 +437,11 @@ export default function SermonsPage() {
         <span style={{ color: T.gold }}>✝</span>
         &nbsp; Developed by Caleb Tonny &copy; 2026. All rights reserved.
       </footer>
+
+      {/* ══ SERMON READER MODAL ══════════════════════════════════════════ */}
+      {activeSermon && (
+        <SermonModal sermon={activeSermon} onClose={() => setActiveSermon(null)} />
+      )}
     </div>
   );
 }
@@ -413,7 +495,7 @@ const styles = {
   featuredDesc:  { fontFamily: font.body, fontSize: "16px", lineHeight: "1.85", color: "rgba(255,255,255,0.72)", margin: "0 0 1.5rem", maxWidth: "640px" },
   featuredMeta:  { display: "flex", flexWrap: "wrap", gap: "1rem", fontFamily: font.body, fontSize: "13px", color: "rgba(255,255,255,0.55)", marginBottom: "2rem" },
 
-  // Download buttons
+  // Buttons
   downloadBtnPrimary: {
     display: "inline-block",
     padding: "12px 32px",
