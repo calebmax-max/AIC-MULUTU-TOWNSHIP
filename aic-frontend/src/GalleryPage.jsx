@@ -193,7 +193,7 @@ function GalleryImage({ src, alt, title, delay }) {
 // ── Section ───────────────────────────────────────────────────────────────
 function GallerySection({ section, sectionIndex }) {
   const [ref, visible] = useReveal(0);
-  const minWidth = section.cols === 2 ? "260px" : "200px";
+  const minWidth = section.cols === 2 ? "260px" : section.cols === 3 ? "200px" : section.cols === 4 ? "160px" : section.cols === 5 ? "140px" : "120px";
 
   return (
     <div ref={ref} style={{ ...styles.section, ...reveal(visible) }}>

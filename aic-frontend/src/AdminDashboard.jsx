@@ -322,7 +322,7 @@ function GalleryTab({ toast }) {
   const [editingSec, setEditingSec] = useState(null);
   const [addItemTo, setAddItemTo] = useState(null);
   const [itemForm, setItemForm]   = useState(EMPTY_ITEM);
-  const [imgFile, setImgFile]     = useState(null);
+  const [imgFiles, setImgFiles]   = useState([]);
   const [confirm, setConfirm]     = useState(null);
   const [saving, setSaving]       = useState(false);
   // Replace photo state: { item, sectionId }
@@ -357,17 +357,31 @@ function GalleryTab({ toast }) {
   };
 
   const saveItem = async () => {
-    if (!imgFile && !itemForm.src) return toast("Upload an image or provide a path.", "error");
+    if (imgFiles.length === 0 && !itemForm.src) return toast("Upload an image or provide a path.", "error");
     setSaving(true);
-    const data = new FormData();
-    if (imgFile) data.append("image", imgFile);
-    else data.append("src", itemForm.src);
-    data.append("title", itemForm.title);
-    data.append("alt",   itemForm.alt);
-    const res = await fetch(`${API_BASE}/api/gallery/sections/${addItemTo}/items`, { method: "POST", body: data });
-    setSaving(false);
-    if (res.ok) { toast("Photo added!", "success"); setAddItemTo(null); setItemForm(EMPTY_ITEM); setImgFile(null); load(); }
-    else toast("Failed to add photo.", "error");
+    if (imgFiles.length > 0) {
+      let failed = 0;
+      for (const file of imgFiles) {
+        const data = new FormData();
+        data.append("image", file);
+        data.append("title", imgFiles.length === 1 ? itemForm.title : "");
+        data.append("alt",   imgFiles.length === 1 ? itemForm.alt   : file.name.replace(/\.[^.]+$/, ""));
+        const res = await fetch(`${API_BASE}/api/gallery/sections/${addItemTo}/items`, { method: "POST", body: data });
+        if (!res.ok) failed++;
+      }
+      setSaving(false);
+      if (failed === 0) { toast(`${imgFiles.length} photo${imgFiles.length > 1 ? "s" : ""} added!`, "success"); setAddItemTo(null); setItemForm(EMPTY_ITEM); setImgFiles([]); load(); }
+      else toast(`${failed} photo(s) failed to upload.`, "error");
+    } else {
+      const data = new FormData();
+      data.append("src",   itemForm.src);
+      data.append("title", itemForm.title);
+      data.append("alt",   itemForm.alt);
+      const res = await fetch(`${API_BASE}/api/gallery/sections/${addItemTo}/items`, { method: "POST", body: data });
+      setSaving(false);
+      if (res.ok) { toast("Photo added!", "success"); setAddItemTo(null); setItemForm(EMPTY_ITEM); setImgFiles([]); load(); }
+      else toast("Failed to add photo.", "error");
+    }
   };
 
   const delItem = async (id) => {
@@ -431,15 +445,42 @@ function GalleryTab({ toast }) {
       {addItemTo && (
         <div style={{ position: "fixed", inset: 0, zIndex: 8000, background: "rgba(7,14,30,0.6)", display: "flex", alignItems: "center", justifyContent: "center", padding: "1rem" }}>
           <div style={{ background: T.white, borderRadius: "12px", padding: "2rem", maxWidth: "440px", width: "100%", boxShadow: "0 24px 64px rgba(0,0,0,0.2)" }}>
-            <p style={s.formTitle}>Add Photo</p>
-            <Field label="Upload Image"><input type="file" accept="image/*" onChange={e => setImgFile(e.target.files[0] || null)} style={{ fontFamily: font.body, fontSize: "14px", color: T.textMid }} /></Field>
-            <p style={{ fontFamily: font.body, fontSize: "12px", color: T.textLight, margin: "-0.5rem 0 1rem", textAlign: "center" }}>— or —</p>
-            <Field label="Image Path / URL"><Input value={itemForm.src} onChange={itf("src")} placeholder="images/photo.jpg" /></Field>
-            <Field label="Caption (optional)"><Input value={itemForm.title} onChange={itf("title")} placeholder="e.g. Sunday School Session" /></Field>
-            <Field label="Alt text"><Input value={itemForm.alt} onChange={itf("alt")} placeholder="Brief description for accessibility" /></Field>
+            <p style={s.formTitle}>Add Photos</p>
+            <Field label="Upload Images (select multiple)">
+              <input type="file" accept="image/*" multiple
+                onChange={e => setImgFiles(Array.from(e.target.files))}
+                style={{ fontFamily: font.body, fontSize: "14px", color: T.textMid }} />
+            </Field>
+            {imgFiles.length > 0 && (
+              <div style={{ margin: "-0.5rem 0 1rem", padding: "0.75rem", background: T.goldPale, borderRadius: "6px", border: `1px solid ${T.border}` }}>
+                <p style={{ fontFamily: font.body, fontSize: "12px", color: T.textMid, margin: "0 0 6px", fontWeight: 700 }}>
+                  {imgFiles.length} image{imgFiles.length > 1 ? "s" : ""} selected:
+                </p>
+                <div style={{ maxHeight: "100px", overflowY: "auto", display: "flex", flexDirection: "column", gap: "3px" }}>
+                  {imgFiles.map((f, i) => (
+                    <p key={i} style={{ fontFamily: font.body, fontSize: "12px", color: T.textMid, margin: 0 }}>✓ {f.name}</p>
+                  ))}
+                </div>
+              </div>
+            )}
+            {imgFiles.length <= 1 && (
+              <>
+                <p style={{ fontFamily: font.body, fontSize: "12px", color: T.textLight, margin: "-0.5rem 0 1rem", textAlign: "center" }}>— or paste a path —</p>
+                <Field label="Image Path / URL"><Input value={itemForm.src} onChange={itf("src")} placeholder="images/photo.jpg" /></Field>
+                <Field label="Caption (optional)"><Input value={itemForm.title} onChange={itf("title")} placeholder="e.g. Sunday School Session" /></Field>
+                <Field label="Alt text"><Input value={itemForm.alt} onChange={itf("alt")} placeholder="Brief description for accessibility" /></Field>
+              </>
+            )}
+            {imgFiles.length > 1 && (
+              <p style={{ fontFamily: font.body, fontSize: "12px", color: T.textLight, margin: "0 0 1rem" }}>
+                Caption and alt text can be edited individually after uploading.
+              </p>
+            )}
             <div style={{ display: "flex", gap: "0.75rem", marginTop: "0.5rem" }}>
-              <button onClick={saveItem} disabled={saving} style={btn.gold}>{saving ? "Uploading…" : "Add Photo"}</button>
-              <button onClick={() => { setAddItemTo(null); setItemForm(EMPTY_ITEM); setImgFile(null); }} style={btn.outline}>Cancel</button>
+              <button onClick={saveItem} disabled={saving} style={btn.gold}>
+                {saving ? "Uploading…" : imgFiles.length > 1 ? `Upload ${imgFiles.length} Photos` : "Add Photo"}
+              </button>
+              <button onClick={() => { setAddItemTo(null); setItemForm(EMPTY_ITEM); setImgFiles([]); }} style={btn.outline}>Cancel</button>
             </div>
           </div>
         </div>
@@ -453,7 +494,13 @@ function GalleryTab({ toast }) {
           <Field label="Title (e.g. Choir)"><Input value={secForm.title} onChange={sf("title")} placeholder="Choir" /></Field>
         </div>
         <Field label="Columns">
-          <Select value={secForm.cols} onChange={sf("cols")} options={[{ value: "2", label: "2 columns" }, { value: "3", label: "3 columns" }]} />
+          <Select value={secForm.cols} onChange={sf("cols")} options={[
+            { value: "2", label: "2 columns" },
+            { value: "3", label: "3 columns" },
+            { value: "4", label: "4 columns" },
+            { value: "5", label: "5 columns" },
+            { value: "6", label: "6 columns" },
+          ]} />
         </Field>
         <div style={{ display: "flex", gap: "0.75rem" }}>
           <button onClick={saveSec} disabled={saving} style={btn.gold}>{saving ? "Saving…" : editingSec ? "Update Section" : "Create Section"}</button>
