@@ -61,8 +61,8 @@ function reveal(visible, extra = {}) {
 
 // ── Data ──────────────────────────────────────────────────────────────────
 const SERVICE_HOURS = [
-  { day: "Sunday Service",           time: "9:00 AM – 12:00 PM", highlight: true  },
-  { day: "Wednesday Fellowship",     time: "5:00 PM – 6:00 PM",  highlight: false },
+  { day: "Sunday Service",           time: "10:00 AM – 13:00 PM", highlight: true  },
+  { day: "Wednesday Fellowship",     time: "4:00 PM – 5:00 PM",  highlight: false },
 ];
 
 const CONTACT_ITEMS = [
